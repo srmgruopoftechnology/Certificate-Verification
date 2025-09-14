@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SRM Group of Technologies — Certificate Verification</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background: #f6fbf6; 
+      opacity: 0; 
+      transform: translateY(20px); 
+      transition: all 1s ease-in-out; 
+    }
+    body.loaded { opacity: 1; transform: translateY(0); }
+    .card { border-radius: 1rem; box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+    .logo { width: 60px; height: 60px; border-radius: 12px; background: linear-gradient(135deg,#0c9e4c,#1ec75f); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:20px; }
+    .btn-green { background: #0c9e4c; color: #fff; border-radius: 10px; font-weight: 600; }
+    .btn-green:hover { background: #0a7d3c; color: #fff; }
+    .result { margin-top: 1rem; padding: 1rem; border-radius: 0.75rem; background: #f0fff4; border: 1px dashed rgba(12,158,76,0.3); }
+    .notfound { background: #fff6f6; border-color: #ffd6d6; }
+    footer { margin-top: 2rem; }
+    .visit-btn { margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container py-5">
+    <div class="card p-4">
+      <div class="d-flex align-items-center mb-3">
+        <div class="logo me-3">SRM</div>
+        <div>
+          <h1 class="h4 mb-0">SRM Group of Technologies — Certificate Verification</h1>
+          <p class="text-muted small mb-0">Verify and download Attendance Certificates dynamically.</p>
+        </div>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-lg-7">
+          <div class="p-3 bg-light rounded">
+            <h2 class="h5">Welcome!</h2>
+            <p>Enter your certificate number to confirm authenticity and download your Attendance Certificate.</p>
+            <small class="text-muted">Format: SRMWDI0012</small>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="border rounded p-3">
+            <label for="certNo" class="form-label">Enter your certificate number</label>
+            <input id="certNo" type="text" class="form-control" placeholder="e.g. SRMWDI0012">
+            <button id="verifyBtn" class="btn btn-green mt-3 w-100">Verify</button>
+            <div id="result" class="result mt-3" style="display:none;"></div>
+            <div id="pdfButtons" class="mt-2" style="display:none;">
+              <button id="downloadAttend" class="btn btn-success w-100">Download Attendance Certificate</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Form -->
+      <div class="mt-5">
+        <h3>Contact Us</h3>
+        <form action="https://formspree.io/f/xzzaqbwr" method="POST" class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Your Name</label>
+            <input type="text" name="name" class="form-control" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Your Email</label>
+            <input type="email" name="_replyto" class="form-control" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Message</label>
+            <textarea name="message" rows="4" class="form-control" required></textarea>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-green">Send Message</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Footer -->
+      <footer class="text-center">
+        <p>Produced by <strong>SRM Group of Technologies</strong>. For official confirmation contact the SRM office.</p>
+        <a href="https://srmgruopoftechnology.github.io/WEBSITE/" target="_blank" class="btn btn-green visit-btn">🌐 Visit Our Page</a>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    // Landing animation
+    window.addEventListener("load", () => {
+      document.body.classList.add("loaded");
+    });
+
+    let certDB = {};
+
+    // Load certificates.json dynamically
+    fetch("certificates.json")
+      .then(response => response.json())
+      .then(data => certDB = data)
+      .catch(err => console.error("Error loading certificates.json", err));
+
+    const certNoInput = document.getElementById('certNo');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const resultDiv = document.getElementById('result');
+    const pdfButtons = document.getElementById('pdfButtons');
+    const downloadAttend = document.getElementById('downloadAttend');
+
+    const { jsPDF } = window.jspdf;
+
+    function renderDetails(data){
+      return `
+        <div class="fw-bold mb-2">✅ Certificate found</div>
+        <div><strong>Name:</strong> ${data.name}</div>
+        <div><strong>Roll No:</strong> ${data.roll}</div>
+        <div><strong>Course:</strong> ${data.course}</div>
+        <div><strong>College:</strong> ${data.college}</div>
+        <div><strong>Internship:</strong> ${data.internship}</div>
+        <div><strong>Period:</strong> ${data.start} to ${data.end} (${data.days} working days)</div>
+        <div><strong>Remarks:</strong> ${data.remarks}</div>
+      `;
+    }
+
+    function renderNotFound(input){
+      return `<div class="fw-bold mb-2">❌ Certificate not found</div>
+        <small class="text-muted">No record matches <strong>${input}</strong>. Please check the number or contact the SRM office.</small>`;
+    }
+
+    // ✅ Modern Attendance Certificate with Signature
+    async function generateAttendancePDF(data){
+      const doc = new jsPDF("p", "mm", "a4");
+      doc.setFillColor(240, 255, 240);
+      doc.rect(0, 0, 210, 297, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.setTextColor(12, 158, 76);
+      doc.text("SRM Group of Technologies", 105, 25, { align: "center" });
+
+      doc.setFontSize(18);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Certificate of Attendance", 105, 50, { align: "center" });
+
+      doc.setDrawColor(12, 158, 76);
+      doc.setLineWidth(1);
+      doc.line(40, 55, 170, 55);
+
+      doc.setFontSize(12);
+      doc.setFont("times", "normal");
+      let content = `${data.name} (Roll No: ${data.roll}), a ${data.course} student of ${data.college}, has successfully completed a ${data.days}-day internship as a ${data.internship} at SRM IT Solutions from ${data.start} to ${data.end}. During this period, he worked on developing responsive and dynamic web applications and demonstrated strong technical skills, a positive learning attitude, and professionalism throughout the internship.`;
+
+      doc.text(content, 20, 80, { maxWidth: 170, align: "justify" });
+
+      let img = new Image();
+      img.src = "sign.png";
+      await new Promise(resolve => { img.onload = resolve; });
+      doc.addImage(img, "PNG", 135, 230, 50, 25);
+
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Authorized Signature", 160, 265, { align: "center" });
+
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text("This certificate is digitally generated and does not require a seal.", 105, 280, { align: "center" });
+
+      doc.save(`${data.roll}_attendance.pdf`);
+    }
+
+    verifyBtn.addEventListener('click', ()=>{
+      const val = certNoInput.value.trim();
+      resultDiv.style.display = 'block';
+      pdfButtons.style.display = 'none';
+      resultDiv.classList.remove('notfound');
+      resultDiv.innerHTML = '';
+
+      if(!val){
+        resultDiv.innerHTML = '<small class="text-muted">Please enter a certificate number.</small>';
+        return;
+      }
+
+      const data = certDB[val];
+      if(data){
+        resultDiv.innerHTML = renderDetails(data);
+        pdfButtons.style.display = 'block';
+        downloadAttend.onclick = () => generateAttendancePDF(data);
+      } else {
+        resultDiv.classList.add('notfound');
+        resultDiv.innerHTML = renderNotFound(val);
+      }
+    });
+
+    certNoInput.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter') verifyBtn.click();
+    });
+  </script>
+</body>
+</html>
