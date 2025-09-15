@@ -4,7 +4,7 @@
     "roll": "24132166504321010",
     "course": "Postgraduate",
     "college": "Government Arts & Science College - Thiruvennainallur",
-    "internship": "Web Development Intern at SRMGroupOfTechnologies",
+    "internship": "Web Development Intern",
     "start": "2025-06-16",
     "end": "2025-07-25",
     "days": 30,
@@ -32,4 +32,5 @@
     "days": 30,
     "remarks": "pending"
   }
+
 }
